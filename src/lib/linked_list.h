@@ -5,6 +5,14 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <pthread.h>
+#include <sys/_types/_sigaltstack.h>
+
+#ifdef DEBUG
+#define DEBUG_TEST 1
+#else
+#define DEBUG_TEST 1
+#endif
+
 #define debug_print(fmt, ...) \
             do { if (DEBUG_TEST) fprintf(stderr, fmt, __VA_ARGS__); } while (0)
 
@@ -38,6 +46,9 @@ static inline void __linked_list_add(struct linked_list_node *prev, struct linke
 static inline void linked_list_add_tail (struct linked_list_node *prev, struct linked_list_node *new);
 
 static inline void __linked_list_del(struct linked_list_node *prev, struct linked_list_node *next);
+static inline void __linked_list_del_entry_after(struct linked_list_node *entry);
+static inline void linked_list_del_after(struct linked_list_node *entry);
+static inline void linked_list_del_init_after(struct linked_list_node *entry);
 // static inline void __linked_list_del_entry(struct linked_list_node *entry);
 // static inline void linked_list_del(struct linked_list_node *entry);
 // static inline void linked_list_del_init(struct linked_list_node *entry);
@@ -112,6 +123,30 @@ void __linked_list_del(struct linked_list_node *prev, struct linked_list_node *n
 	prev->next = next;
 }
 
+void __linked_list_del_entry_after(struct linked_list_node *entry)
+{
+    __linked_list_del(entry, entry->next->next);
+}
+
+void linked_list_del_after(struct linked_list_node *entry)
+{
+    struct linked_list_node *next_entry = entry->next;
+    __linked_list_del_entry_after(entry);
+//    __linked_list_del(entry, entry->next->next);
+    next_entry->next = LIST_POISON1; // Beware here, entry->next->next has changed.
+}
+
+/*
+ *
+ *
+ */
+void linked_list_del_init_after(struct linked_list_node *entry)
+{
+    struct linked_list_node *next_entry = entry->next;
+    __linked_list_del_entry_after(entry);
+    INIT_LINKED_LIST_HEAD(next_entry);
+}
+
 void __double_end_linked_list_del(struct double_end_linked_list_node *prev, struct double_end_linked_list_node *next)
 {
 	((struct linked_list_node *)prev)->next = (struct linked_list_node *)next;
@@ -125,7 +160,8 @@ void __double_end_linked_list_del_entry(struct double_end_linked_list_node *entr
 
 void double_end_linked_list_del(struct double_end_linked_list_node *entry)
 {
-	__double_end_linked_list_del(entry->prev, ((struct double_end_linked_list_node*) ((struct linked_list_node*) entry)->next));
+    __double_end_linked_list_del_entry(entry);
+//	__double_end_linked_list_del(entry->prev, ((struct double_end_linked_list_node*) ((struct linked_list_node*) entry)->next));
 	( ( (struct linked_list_node*)entry )->next ) = LIST_POISON1;
 	entry->prev = LIST_POISON2;
 }
